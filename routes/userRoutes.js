@@ -6,6 +6,7 @@ const { getCategories } = require("../controllers/CategoryController");
 const { getAllMalls } = require("../controllers/MallController");
 const {getTopProductBrandsSimple} = require("../controllers/BrandsController")
 const { getNearbyOutlets } = require("../controllers/OutletController"); // new
+const { sendOtp, verifyOtp } = require("../controllers/SendOtp"); // adjust path
 
 const router = express.Router();
 
@@ -15,6 +16,18 @@ router.get("/get_shop_able_videos", getShopAbleVideos);
 
 
 
+router.post("/send-otp", async (req, res) => {
+  const { mobile } = req.body;
+  const result = await sendOtp(mobile);
+  res.json(result);
+});
+
+// Verify OTP
+router.post("/verify-otp", (req, res) => {
+  const { mobile, otp } = req.body;
+  const result = verifyOtp(mobile, otp);
+  res.json(result);
+});
 
 
 router.get("/getTopBrands", async (req, res) => {
