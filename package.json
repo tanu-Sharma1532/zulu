@@ -2,8 +2,10 @@
   "dependencies": {
     "body-parser": "^2.2.0",
     "express": "^5.1.0",
+    "fs": "^0.0.1-security",
     "mysql2": "^3.14.3",
     "node-fetch": "^3.3.2",
+    "path": "^0.12.7",
     "sequelize": "^6.37.7",
     "twilio": "^5.8.0"
   },
