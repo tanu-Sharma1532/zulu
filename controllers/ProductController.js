@@ -1,4 +1,5 @@
 const sequelize = require("../config/dataBase");
+const { setCache, getCache } = require("../config/redisService");
 
 let cachedAttributeValues = null;
 
@@ -31,7 +32,6 @@ const getProducts = async (req, res) => {
       offset = (page - 1) * limit;
     }
 
-    // Exclude pagination/filter keys
     const excludedKeys = ["limit", "offset", "page", "min_price", "max_price", "search"];
     const filterKeys = Object.keys(filters).filter(k => !excludedKeys.includes(k));
 
@@ -58,6 +58,15 @@ const getProducts = async (req, res) => {
           replacements.push(value);
         }
       }
+    }
+
+    const ignoreCache = req?.headers?.ignorecache === 'true';
+    const filtersHash = JSON.stringify({ ...filters, limit, offset, page });
+    
+    if (!ignoreCache) {
+      const cacheKey = `products:${Buffer.from(filtersHash).toString('base64').substring(0, 20)}`;
+      const cached = await getCache(cacheKey);
+      if (cached) return res.json(cached);
     }
 
     const countQuery = `SELECT COUNT(*) as total ${baseQuery}`;
@@ -97,7 +106,6 @@ const getProducts = async (req, res) => {
           : [];
         const attrs = await getAttributeValues(ids);
 
-        // Format variant like Zulu response
         productMap[variant.product_id].variants.push({
           ...variant,
           variant_ids: variant.attribute_value_ids,
@@ -119,7 +127,6 @@ const getProducts = async (req, res) => {
       }
     }
 
-    // Format final response
     const formattedProducts = Object.values(productMap).map(p => ({
       ...p,
       sales: "0",
@@ -147,13 +154,13 @@ const getProducts = async (req, res) => {
       details: [],
     }));
 
-    return res.json({
+    const response = {
       error: false,
       message: "Products retrieved successfully !",
       min_price: req.body?.min_price || 0,
       max_price: req.body?.max_price || 0,
       search: req.body?.search || "",
-      filters: [], // You can populate filters if needed
+      filters: [],
       tags: [],
       total: total.toString(),
       offset: offset.toString(),
@@ -162,7 +169,14 @@ const getProducts = async (req, res) => {
       totalPages: Math.ceil(total / limit),
       currentPage: page || Math.floor(offset / limit) + 1,
       limit,
-    });
+    };
+
+    if (!ignoreCache) {
+      const cacheKey = `products:${Buffer.from(filtersHash).toString('base64').substring(0, 20)}`;
+      await setCache(cacheKey, response);
+    }
+
+    return res.json(response);
 
   } catch (err) {
     console.error("DB Error:", err);

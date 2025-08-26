@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { setCache, getCache } = require("../config/redisService");
 
 function deepStringifyNumbers(obj) {
   if (Array.isArray(obj)) return obj.map(deepStringifyNumbers);
@@ -62,7 +63,15 @@ async function getCategories({
   slug = "",
   ignore_status = "",
   seller_id = "",
-}) {
+}, req) {
+  const ignoreCache = req?.headers?.ignorecache === 'true';
+  
+  if (!ignoreCache) {
+    const cacheKey = `categories:${id || 'root'}:${limit}:${offset}:${sort}:${order}:${has_child_or_item}:${slug}:${ignore_status}:${seller_id}`;
+    const cached = await getCache(cacheKey);
+    if (cached) return cached;
+  }
+
   let where = [];
   let params = [];
   if (ignore_status == 1) {
@@ -154,14 +163,32 @@ async function getCategories({
   const result = categories.map((cat) => buildCategoryTree(cat, 0));
   if (result[0]) result[0].total = grandTotal;
 
+  if (!ignoreCache) {
+    const cacheKey = `categories:${id || 'root'}:${limit}:${offset}:${sort}:${order}:${has_child_or_item}:${slug}:${ignore_status}:${seller_id}`;
+    await setCache(cacheKey, result);
+  }
+
   return result;
 }
 
-async function getPopularCategories() {
+async function getPopularCategories(req) {
+  const ignoreCache = req?.headers?.ignorecache === 'true';
+  
+  if (!ignoreCache) {
+    const cached = await getCache('categories:popular');
+    if (cached) return cached;
+  }
+
   const [rows] = await db.query(
     `SELECT * FROM categories ORDER BY clicks DESC`
   );
-  return rows.map(deepStringifyNumbers);
+  const result = rows.map(deepStringifyNumbers);
+
+  if (!ignoreCache) {
+    await setCache('categories:popular', result);
+  }
+
+  return result;
 }
 
 module.exports = {
