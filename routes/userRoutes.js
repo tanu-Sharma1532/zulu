@@ -6,11 +6,20 @@ const {  getAllSellers } = require("../controllers/SellerController");
 const { getTopProductBrandsSimple } = require("../controllers/BrandsController");
 const { getCategories, getPopularCategories } = require("../controllers/CategoryController");
 const { sendOtp, verifyOtp } = require("../controllers/SendOtp");
+const { signUpWithMobile, verifyOtpNew, sendOtp: sendOtpNew, testTwilioConfig } = require("../controllers/AuthController");
 
 const router = express.Router();
 
 // Shop able videos
 router.get("/get_shop_able_videos", getShopAbleVideos);
+
+router.post("/sign-up-with-mobile", signUpWithMobile);
+
+router.post("/verify_otp_new", verifyOtpNew);
+
+router.post("/send_otp_new", sendOtpNew);
+
+router.get("/test-twilio", testTwilioConfig);
 
 router.post("/send-otp", async (req, res) => {
   const { mobile } = req.body;
