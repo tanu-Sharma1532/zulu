@@ -9,7 +9,8 @@ const { sendOtp, verifyOtp } = require("../controllers/SendOtp");
 const { signUpWithMobile, verifyOtpNew, sendOtp: sendOtpNew, testTwilioConfig } = require("../controllers/AuthController");
 const { getUiElement  } = require("../controllers/uiElementController");
 const { getAllMalls  } = require("../controllers/MallController");
- const { getOrders } = require("../controllers/getOrders");
+const { getOrders } = require("../controllers/getOrders");
+const { placeOrder, upload } = require("../controllers/PlaceOrders");
 
 
 
@@ -147,5 +148,8 @@ router.get("/get_ui_element", getUiElement);
 
 // Sellers
 router.get("/getAllSellers", getAllSellers);
+
+
+router.post("/place_order", upload.array("documents"), placeOrder);
 
 module.exports = router;
