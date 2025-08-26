@@ -2,37 +2,31 @@ const express = require("express");
 const { getShopAbleVideos } = require("../controllers/VideoController");
 const { getProducts } = require("../controllers/ProductController");
 const { getNewVideos } = require("../controllers/NewVideoController");
-const { getCategories } = require("../controllers/CategoryController");
-const { getAllMalls } = require("../controllers/MallController");
+const {  getAllSellers } = require("../controllers/SellerController");
 const { getTopProductBrandsSimple } = require("../controllers/BrandsController");
-const { getNearbyOutlets } = require("../controllers/OutletController"); 
-const { sendOtp, verifyOtp } = require("../controllers/SendOtp"); 
-const { getUiElement } = require("../controllers/uiElementController");
-const { getAllSellers } = require("../controllers/SellerController");
+const { getCategories, getPopularCategories } = require("../controllers/CategoryController");
+const { sendOtp, verifyOtp } = require("../controllers/SendOtp");
 
 const router = express.Router();
 
 // Shop able videos
 router.get("/get_shop_able_videos", getShopAbleVideos);
 
-// Send OTP
 router.post("/send-otp", async (req, res) => {
   const { mobile } = req.body;
   const result = await sendOtp(mobile);
   res.json(result);
 });
 
-// Verify OTP
 router.post("/verify-otp", (req, res) => {
   const { mobile, otp } = req.body;
   const result = verifyOtp(mobile, otp);
   res.json(result);
 });
 
-// Top Brands
 router.get("/getTopBrands", async (req, res) => {
   try {
-    const brands = await getTopProductBrandsSimple();
+    const brands = await getTopProductBrandsSimple(req);
     res.json(brands);
   } catch (err) {
     console.error("Error in /getTopBrands route:", err);
@@ -40,10 +34,27 @@ router.get("/getTopBrands", async (req, res) => {
   }
 });
 
-// Products
-router.get("/getProducts", getProducts);
+router.get("/getCategories", async (req, res) => {
+  try {
+    const categories = await getCategories(req.query, req);
+    res.json(categories);
+  } catch (err) {
+    console.error("Error in /getCategories route:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
-// New Videos
+router.get("/getPopularCategories", async (req, res) => {
+  try {
+    const categories = await getPopularCategories(req);
+    res.json(categories);
+  } catch (err) {
+    console.error("Error in /getPopularCategories route:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/getProducts", getProducts);
 router.get("/getNewVideos", getNewVideos);
 
 // Categories

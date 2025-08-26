@@ -1,8 +1,21 @@
 // controllers/sellerController.js
 const sequelize = require("../config/dataBase"); // Your Sequelize instance
+const { getCache, setCache, deleteCache } = require("../config/redisService");
 
 const getAllSellers = async (req, res) => {
     try {
+        const cacheKey = 'all_sellers';
+        
+        const ignoreCache = req.headers.ignorecache === 'true';
+        
+        if (!ignoreCache) {
+            const cachedData = await getCache(cacheKey);
+            
+            if (cachedData) {
+                return res.status(200).json({ success: true, data: cachedData, fromCache: true });
+            }
+        }
+
         // Fetch all sellers
         const sellers = await sequelize.query(
             `SELECT * FROM seller_data`,
@@ -41,11 +54,25 @@ const getAllSellers = async (req, res) => {
             distance: seller.distance || null,
         }));
 
-        return res.status(200).json({ success: true, data: responseData });
+        // Only cache if not ignoring cache
+        if (!ignoreCache) {
+            await setCache(cacheKey, responseData);
+        }
+
+        return res.status(200).json({ success: true, data: responseData, fromCache: false });
     } catch (err) {
         console.error("Error fetching all sellers:", err);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
 
-module.exports = { getAllSellers };
+const clearSellersCache = async () => {
+    try {
+        await deleteCache('all_sellers');
+        console.log('Sellers cache cleared successfully');
+    } catch (error) {
+        console.error('Error clearing sellers cache:', error);
+    }
+};
+
+module.exports = { getAllSellers, clearSellersCache };

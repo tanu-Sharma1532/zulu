@@ -1,8 +1,15 @@
 // topBrands.controller.js
-const db = require("../config/db"); // use the shared pool
+const db = require("../config/db");
+const { setCache, getCache } = require("../config/redisService");
 
-async function getTopProductBrandsSimple() {
-  // Fetch brands with product counts and ranking
+async function getTopProductBrandsSimple(req) {
+  const ignoreCache = req?.headers?.ignorecache === 'true';
+  
+  if (!ignoreCache) {
+    const cached = await getCache('brands:top');
+    if (cached) return cached;
+  }
+
   const [brands] = await db.query(`
     SELECT 
       b.id, b.name, b.image, b.banner1, b.banner2,
@@ -19,7 +26,6 @@ async function getTopProductBrandsSimple() {
 
   const brandNames = brands.map((b) => b.name);
 
-  // Fetch categories for the brands
   const [categories] = await db.query(
     `
     SELECT 
@@ -36,7 +42,6 @@ async function getTopProductBrandsSimple() {
     [brandNames]
   );
 
-  // Map categories
   const catMap = {};
   const subCatMap = {};
   const subSubCatMap = {};
@@ -74,7 +79,6 @@ async function getTopProductBrandsSimple() {
     }
   });
 
-  // Fetch seller products
   const [sellerProducts] = await db.query(
     `
     SELECT brand, seller_id, COUNT(*) as total_product
@@ -95,7 +99,6 @@ async function getTopProductBrandsSimple() {
     sellerDataMap = Object.fromEntries(sellerData.map((s) => [s.user_id, s]));
   }
 
-  // Map sellers to brands
   const brandSellerMap = {};
   sellerProducts.forEach((row) => {
     if (!brandSellerMap[row.brand]) brandSellerMap[row.brand] = [];
@@ -107,7 +110,6 @@ async function getTopProductBrandsSimple() {
     });
   });
 
-  // Construct final result
   const result = brands.map((brand) => ({
     id: brand.id,
     name: brand.name,
@@ -121,6 +123,10 @@ async function getTopProductBrandsSimple() {
     no_of_outlet: brand.no_of_outlet,
     seller_info: brandSellerMap[brand.name] || [],
   }));
+
+  if (!ignoreCache) {
+    await setCache('brands:top', result);
+  }
 
   return result;
 }
