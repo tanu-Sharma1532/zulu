@@ -9,7 +9,7 @@ const { sendOtp, verifyOtp } = require("../controllers/SendOtp");
 const { signUpWithMobile, verifyOtpNew, sendOtp: sendOtpNew, testTwilioConfig } = require("../controllers/AuthController");
 const { getUiElement  } = require("../controllers/uiElementController");
 const { getAllMalls  } = require("../controllers/MallController");
- 
+ const { getOrders } = require("../controllers/getOrders");
 
 
 
@@ -135,6 +135,12 @@ router.get("/getNearbyOutlets", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
+
+
+router.post("/getOrders", getOrders);
+
 
 // UI Element
 router.get("/get_ui_element", getUiElement);
