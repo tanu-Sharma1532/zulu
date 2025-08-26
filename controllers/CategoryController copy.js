@@ -20,17 +20,18 @@ function getImageUrl(path, imageType = "", imageSize = "", fileType = "image") {
   const baseUrl = "https://zulushop.in/";
   if (!path) return baseUrl + "assets/no-image.png";
   if (/^https?:\/\//.test(path)) return path;
+  let subdirectory = "";
   const segments = path.split("/");
-  const subdirectory = segments.slice(0, -1).join("/") + "/";
+  for (let i = 0; i < segments.length - 1; i++)
+    subdirectory += segments[i] + "/";
   const imageName = segments[segments.length - 1];
-  const imageMainDir = baseUrl + subdirectory;
-
+  let imageMainDir = baseUrl + subdirectory;
   if (fileType === "image") {
     if (
       ["thumb", "cropped"].includes(imageType.trim().toLowerCase()) &&
       ["md", "sm"].includes(imageSize.trim().toLowerCase())
     ) {
-      return `${imageMainDir}${imageType}-${imageSize}/${imageName}`;
+      return imageMainDir + imageType + "-" + imageSize + "/" + imageName;
     }
     return imageMainDir + imageName;
   }
@@ -44,7 +45,6 @@ function normalizeCountArr(arr) {
     product_count: (obj.product_count ?? "0").toString(),
   }));
 }
-
 function nullIfEmpty(arr) {
   return !arr || !Array.isArray(arr) || arr.length === 0
     ? null
@@ -59,38 +59,52 @@ async function getCategories({
   offset = 0,
   sort = "row_order",
   order = "ASC",
+  has_child_or_item = "true",
   slug = "",
+  ignore_status = "",
   seller_id = "",
 }, req) {
-  const ignoreCache = req?.headers?.ignorecache === "true";
-
-  const cacheKey = `categories:${id || "root"}:${limit}:${offset}:${sort}:${order}:${slug}:${seller_id}`;
+  const ignoreCache = req?.headers?.ignorecache === 'true';
+  
   if (!ignoreCache) {
+    const cacheKey = `categories:${id || 'root'}:${limit}:${offset}:${sort}:${order}:${has_child_or_item}:${slug}:${ignore_status}:${seller_id}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
   }
 
   let where = [];
   let params = [];
-  if (id) {
-    where.push("c1.id = ?");
-    params.push(id);
+  if (ignore_status == 1) {
+    if (id) {
+      where.push("c1.id = ?");
+      params.push(id);
+    } else {
+      where.push("c1.parent_id = 0");
+    }
   } else {
-    where.push("c1.parent_id = 0");
+    if (id) {
+      where.push("c1.id = ? AND c1.status = 1");
+      params.push(id);
+    } else {
+      where.push("c1.parent_id = 0 AND c1.status = 1");
+    }
   }
-
   if (slug) {
     where.push("c1.slug = ?");
     params.push(slug);
   }
-
   const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  const baseQuery = `SELECT c1.* FROM categories c1 ${whereClause} ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
-  params.push(Number(limit), Number(offset));
+
+const baseQuery = `SELECT c1.* FROM categories c1 ${whereClause} ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
+params.push(Number(limit), Number(offset));
   const [categories] = await db.query(baseQuery, params);
 
-  const [allCategories] = await db.query(`SELECT * FROM categories`);
-  const [[{ grandTotal }]] = await db.query(`SELECT COUNT(*) as grandTotal FROM categories`);
+  const [allCategories] = await db.query(
+    `SELECT * FROM categories WHERE status = 1 or 0`
+  );
+  const [[{ grandTotal }]] = await db.query(
+    `SELECT COUNT(*) as grandTotal FROM categories WHERE status = 1`
+  );
 
   const [subCatCounts] = await db.query(
     `SELECT cat2 AS id, COUNT(id) AS product_count FROM products WHERE cat2 IS NOT NULL GROUP BY cat2`
@@ -103,13 +117,22 @@ async function getCategories({
   );
 
   const subCatMap = Object.fromEntries(
-    subCatCounts.map((row) => [row.id, [{ product_count: row.product_count.toString() }]])
+    subCatCounts.map((row) => [
+      row.id,
+      [{ product_count: row.product_count.toString() }],
+    ])
   );
   const subSubCatMap = Object.fromEntries(
-    subSubCatCounts.map((row) => [row.id, [{ product_count: row.product_count.toString() }]])
+    subSubCatCounts.map((row) => [
+      row.id,
+      [{ product_count: row.product_count.toString() }],
+    ])
   );
   const catSumMap = Object.fromEntries(
-    catSumCounts.map((row) => [row.id, [{ product_count: row.product_count.toString() }]])
+    catSumCounts.map((row) => [
+      row.id,
+      [{ product_count: row.product_count.toString() }],
+    ])
   );
 
   const childrenMap = {};
@@ -121,7 +144,9 @@ async function getCategories({
   function buildCategoryTree(cat, level = 0) {
     return deepStringifyNumbers({
       ...cat,
-      children: (childrenMap[cat.id] || []).map((child) => buildCategoryTree(child, level + 1)),
+      children: (childrenMap[cat.id] || []).map((child) =>
+        buildCategoryTree(child, level + 1)
+      ),
       text: cat.name,
       state: { opened: true },
       icon: "jstree-folder",
@@ -139,6 +164,7 @@ async function getCategories({
   if (result[0]) result[0].total = grandTotal;
 
   if (!ignoreCache) {
+    const cacheKey = `categories:${id || 'root'}:${limit}:${offset}:${sort}:${order}:${has_child_or_item}:${slug}:${ignore_status}:${seller_id}`;
     await setCache(cacheKey, result);
   }
 
@@ -146,18 +172,20 @@ async function getCategories({
 }
 
 async function getPopularCategories(req) {
-  const ignoreCache = req?.headers?.ignorecache === "true";
-
+  const ignoreCache = req?.headers?.ignorecache === 'true';
+  
   if (!ignoreCache) {
-    const cached = await getCache("categories:popular");
+    const cached = await getCache('categories:popular');
     if (cached) return cached;
   }
 
-  const [rows] = await db.query(`SELECT * FROM categories ORDER BY clicks DESC`);
+  const [rows] = await db.query(
+    `SELECT * FROM categories ORDER BY clicks DESC`
+  );
   const result = rows.map(deepStringifyNumbers);
 
   if (!ignoreCache) {
-    await setCache("categories:popular", result);
+    await setCache('categories:popular', result);
   }
 
   return result;
