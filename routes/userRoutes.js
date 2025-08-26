@@ -7,6 +7,9 @@ const { getTopProductBrandsSimple } = require("../controllers/BrandsController")
 const { getCategories, getPopularCategories } = require("../controllers/CategoryController");
 const { sendOtp, verifyOtp } = require("../controllers/SendOtp");
 const { signUpWithMobile, verifyOtpNew, sendOtp: sendOtpNew, testTwilioConfig } = require("../controllers/AuthController");
+const { getUiElement  } = require("../controllers/uiElementController");
+
+
 
 const router = express.Router();
 
@@ -92,6 +95,7 @@ router.get("/getCategories", async (req, res) => {
       ignore_status,
       seller_id,
     });
+     req // <-- pass request
 
     res.json(categories);
   } catch (err) {
