@@ -7,6 +7,7 @@ const { getAllMalls } = require("../controllers/MallController");
 const {getTopProductBrandsSimple} = require("../controllers/BrandsController")
 const { getNearbyOutlets } = require("../controllers/OutletController"); // new
 const { sendOtp, verifyOtp } = require("../controllers/SendOtp"); // adjust path
+const { getUiElement } = require("../controllers/uiElementController");
 
 const router = express.Router();
 
@@ -76,6 +77,8 @@ router.get("/getCategories", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
 router.get("/getallmalls", async (req, res) => {
   try {
     const { user_lat, user_lon } = req.query; // get user coordinates from query params
@@ -115,7 +118,7 @@ router.get("/getNearbyOutlets", async (req, res) => {
 
 
 
-
+router.get("/get_ui_element", getUiElement);
 
 
 
