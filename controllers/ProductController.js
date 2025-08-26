@@ -2,7 +2,6 @@ const sequelize = require("../config/dataBase");
 
 let cachedAttributeValues = null;
 
-// Fetch attribute values from external API (cached)
 async function getAttributeValues(attributeValueIds = []) {
   if (!attributeValueIds.length) return [];
   if (!cachedAttributeValues) {
@@ -22,7 +21,6 @@ async function getAttributeValues(attributeValueIds = []) {
 
 const getProducts = async (req, res) => {
   try {
-    // Support both query params and POST body
     let { limit, offset, page, ...filters } = { ...req.query, ...req.body };
 
     limit = parseInt(limit, 10) || 10;
@@ -33,18 +31,13 @@ const getProducts = async (req, res) => {
       offset = (page - 1) * limit;
     }
 
-    if (isNaN(limit) || isNaN(offset)) {
-      return res.status(400).json({ error: "limit and offset must be numeric" });
-    }
-
-    // Remove pagination keys from filters
-    const excludedKeys = ["limit", "offset", "page", "min_price", "max_price"];
+    // Exclude pagination/filter keys
+    const excludedKeys = ["limit", "offset", "page", "min_price", "max_price", "search"];
     const filterKeys = Object.keys(filters).filter(k => !excludedKeys.includes(k));
 
     let baseQuery = `FROM products WHERE 1=1`;
     const replacements = [];
 
-    // Price filters
     if (req.body?.min_price !== undefined) {
       baseQuery += ` AND retail_simple_special_price >= ?`;
       replacements.push(req.body.min_price);
@@ -54,7 +47,6 @@ const getProducts = async (req, res) => {
       replacements.push(req.body.max_price);
     }
 
-    // Other filters (exact match)
     for (const key of filterKeys) {
       const value = filters[key];
       if (value !== undefined && value !== null) {
@@ -68,12 +60,10 @@ const getProducts = async (req, res) => {
       }
     }
 
-    // Count total products
     const countQuery = `SELECT COUNT(*) as total ${baseQuery}`;
     const countResult = await sequelize.query(countQuery, { replacements, type: sequelize.QueryTypes.SELECT });
     const total = countResult[0]?.total || 0;
 
-    // Fetch products with pagination
     const productsQuery = `
       SELECT id, name, seller_id, priority, image, brand,
              retail_simple_price, retail_simple_special_price,
@@ -87,13 +77,10 @@ const getProducts = async (req, res) => {
       type: sequelize.QueryTypes.SELECT,
     });
 
-    if (!products.length) return res.json({ products: [], totalItems: total, totalPages: 0, currentPage: Math.floor(offset / limit) + 1, limit });
-
     const productIds = products.map(p => p.id);
     const productMap = {};
     products.forEach(p => { productMap[p.id] = { ...p, variants: [] }; });
 
-    // Fetch variants
     if (productIds.length) {
       const variantsQuery = `
         SELECT id, product_id, attribute_value_ids, price, special_price, sku,
@@ -108,13 +95,69 @@ const getProducts = async (req, res) => {
         const ids = variant.attribute_value_ids
           ? variant.attribute_value_ids.split(",").map(Number)
           : [];
-        variant.attributes = await getAttributeValues(ids);
-        productMap[variant.product_id].variants.push(variant);
+        const attrs = await getAttributeValues(ids);
+
+        // Format variant like Zulu response
+        productMap[variant.product_id].variants.push({
+          ...variant,
+          variant_ids: variant.attribute_value_ids,
+          attr_name: attrs.map(a => ` ${a.name || a.value}`).join(","),
+          variant_values: attrs.map(a => a.value).join(","),
+          swatche_type: attrs[0]?.swatche_type || "0",
+          swatche_value: attrs[0]?.swatche_value || "0",
+          images_md: [],
+          images_sm: [],
+          variant_relative_path: [],
+          cart_count: "0",
+          statistics: {
+            total_ordered: 0,
+            total_favorites: 0,
+            total_in_cart: 0,
+            product_variant_id: variant.id.toString(),
+          },
+        });
       }
     }
 
+    // Format final response
+    const formattedProducts = Object.values(productMap).map(p => ({
+      ...p,
+      sales: "0",
+      stock_type: "1",
+      is_prices_inclusive_tax: "0",
+      type: "simple_product",
+      attr_value_ids: "",
+      seller_rating: "0.0",
+      seller_slug: "",
+      seller_no_of_ratings: "0",
+      seller_profile: "",
+      store_name: "",
+      store_description: "",
+      seller_name: "",
+      total_stock: p.variants.reduce((acc, v) => acc + Number(v.stock || 0), 0),
+      min_max_price: {
+        min_price: Math.min(...p.variants.map(v => v.price || 0)),
+        max_price: Math.max(...p.variants.map(v => v.price || 0)),
+        special_price: Math.min(...p.variants.map(v => v.special_price || 0)),
+        max_special_price: Math.max(...p.variants.map(v => v.special_price || 0)),
+        discount_in_percentage: null,
+      },
+      other_images_md: [],
+      other_images_sm: [],
+      details: [],
+    }));
+
     return res.json({
-      products: Object.values(productMap),
+      error: false,
+      message: "Products retrieved successfully !",
+      min_price: req.body?.min_price || 0,
+      max_price: req.body?.max_price || 0,
+      search: req.body?.search || "",
+      filters: [], // You can populate filters if needed
+      tags: [],
+      total: total.toString(),
+      offset: offset.toString(),
+      data: formattedProducts,
       totalItems: total,
       totalPages: Math.ceil(total / limit),
       currentPage: page || Math.floor(offset / limit) + 1,

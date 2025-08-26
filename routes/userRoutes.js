@@ -1,22 +1,21 @@
 const express = require("express");
-const {getShopAbleVideos } = require("../controllers/VideoController");
+const { getShopAbleVideos } = require("../controllers/VideoController");
 const { getProducts } = require("../controllers/ProductController");
 const { getNewVideos } = require("../controllers/NewVideoController");
 const { getCategories } = require("../controllers/CategoryController");
 const { getAllMalls } = require("../controllers/MallController");
-const {getTopProductBrandsSimple} = require("../controllers/BrandsController")
-const { getNearbyOutlets } = require("../controllers/OutletController"); // new
-const { sendOtp, verifyOtp } = require("../controllers/SendOtp"); // adjust path
+const { getTopProductBrandsSimple } = require("../controllers/BrandsController");
+const { getNearbyOutlets } = require("../controllers/OutletController"); 
+const { sendOtp, verifyOtp } = require("../controllers/SendOtp"); 
 const { getUiElement } = require("../controllers/uiElementController");
+const { getAllSellers } = require("../controllers/SellerController");
 
 const router = express.Router();
 
+// Shop able videos
 router.get("/get_shop_able_videos", getShopAbleVideos);
 
-
-
-
-
+// Send OTP
 router.post("/send-otp", async (req, res) => {
   const { mobile } = req.body;
   const result = await sendOtp(mobile);
@@ -30,7 +29,7 @@ router.post("/verify-otp", (req, res) => {
   res.json(result);
 });
 
-
+// Top Brands
 router.get("/getTopBrands", async (req, res) => {
   try {
     const brands = await getTopProductBrandsSimple();
@@ -41,10 +40,13 @@ router.get("/getTopBrands", async (req, res) => {
   }
 });
 
+// Products
+router.get("/getProducts", getProducts);
 
-
-router.get("/getProducts", getProducts);getNewVideos
+// New Videos
 router.get("/getNewVideos", getNewVideos);
+
+// Categories
 router.get("/getCategories", async (req, res) => {
   try {
     const {
@@ -78,10 +80,10 @@ router.get("/getCategories", async (req, res) => {
   }
 });
 
-
+// Malls
 router.get("/getallmalls", async (req, res) => {
   try {
-    const { user_lat, user_lon } = req.query; // get user coordinates from query params
+    const { user_lat, user_lon } = req.query;
     const malls = await getAllMalls({ user_lat, user_lon });
     res.json(malls);
   } catch (err) {
@@ -90,14 +92,7 @@ router.get("/getallmalls", async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
-
+// Nearby Outlets
 router.get("/getNearbyOutlets", async (req, res) => {
   try {
     const { page, limit, latitude, longitude, maxDistance } = req.query;
@@ -115,13 +110,10 @@ router.get("/getNearbyOutlets", async (req, res) => {
   }
 });
 
-
-
-
+// UI Element
 router.get("/get_ui_element", getUiElement);
 
-
-
-
+// Sellers
+router.get("/getAllSellers", getAllSellers);
 
 module.exports = router;
