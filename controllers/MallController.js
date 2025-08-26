@@ -1,5 +1,6 @@
 // mall.controller.js
-const db = require("../config/db"); // make sure path is correct
+const db = require("../config/db");
+const { setCache, getCache } = require("../config/redisService"); // <-- import redis
 require("dotenv").config();
 
 // Calculate distance
@@ -44,9 +45,19 @@ function stringifyNumbers(obj) {
 }
 
 // Get all malls
-async function getAllMalls({ user_lat, user_lon }) {
+async function getAllMalls({ user_lat, user_lon }, req) {
   try {
-    // Fetch societies and sellers in a single LEFT JOIN query
+    const ignoreCache = req?.headers?.ignorecache === "true";
+
+    // Create a unique cache key based on user location
+    const cacheKey = `malls:${user_lat || "x"}:${user_lon || "x"}`;
+
+    if (!ignoreCache) {
+      const cached = await getCache(cacheKey);
+      if (cached) return cached;
+    }
+
+    // Fetch societies and sellers
     const [rows] = await db.query(
       `SELECT s.*, sd.id AS seller_id, sd.store_name AS seller_name, sd.market_place
        FROM societies s
@@ -92,11 +103,18 @@ async function getAllMalls({ user_lat, user_lon }) {
     });
 
     // Add total sellers
-    return Object.values(mallsMap).map((mall) => {
+    const result = Object.values(mallsMap).map((mall) => {
       mall.no_of_outlet = [{ total: String(mall.sellerinfo.length) }];
       mall.sellerinfo = stringifyNumbers(mall.sellerinfo);
       return mall;
     });
+
+    // Save to Redis cache
+    if (!ignoreCache) {
+      await setCache(cacheKey, result, 3600); // cache for 1 hour
+    }
+
+    return result;
   } catch (err) {
     console.error("Error fetching malls:", err);
     return [];
