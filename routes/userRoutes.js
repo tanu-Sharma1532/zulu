@@ -2,18 +2,37 @@ const express = require("express");
 const { getShopAbleVideos } = require("../controllers/VideoController");
 const { getProducts } = require("../controllers/ProductController");
 const { getNewVideos } = require("../controllers/NewVideoController");
-const {  getAllSellers } = require("../controllers/SellerController");
-const { getTopProductBrandsSimple } = require("../controllers/BrandsController");
-const { getCategories, getPopularCategories } = require("../controllers/CategoryController");
+const { getAllSellers } = require("../controllers/SellerController");
+const {
+  getTopProductBrandsSimple,
+} = require("../controllers/BrandsController");
+const {
+  getCategories,
+  getPopularCategories,
+} = require("../controllers/CategoryController");
 const { sendOtp, verifyOtp } = require("../controllers/SendOtp");
-const { signUpWithMobile, verifyOtpNew, sendOtp: sendOtpNew, testTwilioConfig } = require("../controllers/AuthController");
-const { getUiElement  } = require("../controllers/uiElementController");
-const { getAllMalls  } = require("../controllers/MallController");
+const {
+  signUpWithMobile,
+  verifyOtpNew,
+  sendOtp: sendOtpNew,
+  testTwilioConfig,
+} = require("../controllers/AuthController");
+const { getUiElement } = require("../controllers/uiElementController");
+const { getAllMalls } = require("../controllers/MallController");
 const { getOrders } = require("../controllers/getOrders");
 const { addMembership } = require("../controllers/addMembership");
 const { placeOrder, upload } = require("../controllers/PlaceOrders");
-
-
+const {
+  bookTour,
+  updateTour,
+  listOutletSlots,
+  socUserBookings,
+  socSellerBookings,
+  socAllBookings,
+  socOutletBookings,
+  socOutletBookingsByDate,
+} = require("../controllers/tourController");
+const { newPlaceOrder } = require("../controllers/orderController");
 
 const router = express.Router();
 
@@ -99,7 +118,7 @@ router.get("/getCategories", async (req, res) => {
       ignore_status,
       seller_id,
     });
-     req // <-- pass request
+    req; // <-- pass request
 
     res.json(categories);
   } catch (err) {
@@ -138,16 +157,10 @@ router.get("/getNearbyOutlets", async (req, res) => {
   }
 });
 
-
-
-
 router.post("/getOrders", getOrders);
-
 
 // Membership route
 router.post("/add-membership", addMembership);
-
-
 
 // UI Element
 router.get("/get_ui_element", getUiElement);
@@ -155,7 +168,24 @@ router.get("/get_ui_element", getUiElement);
 // Sellers
 router.get("/getAllSellers", getAllSellers);
 
-
 router.post("/place_order", upload.array("documents"), placeOrder);
+
+router.post("/book-tour", bookTour);
+router.post("/update-tour", updateTour);
+router.get("/outlet-slots", listOutletSlots);
+router.get("/soc-user-bookings", socUserBookings);
+router.get("/soc-user-bookings/:user_id", socUserBookings);
+router.get("/soc-seller-bookings", socSellerBookings);
+router.get("/soc-seller-bookings/:seller_id", socSellerBookings);
+router.get("/soc-all-bookings", socAllBookings);
+router.get("/soc-outlet-bookings", socOutletBookings);
+router.get("/soc-outlet-bookings/:society_id", socOutletBookings);
+router.get("/soc-outlet-bookings-datetime", socOutletBookingsByDate);
+router.get(
+  "/soc-outlet-bookings-datetime/:outlet_id/:date",
+  socOutletBookingsByDate
+);
+
+router.post("/newPlaceOrder", newPlaceOrder);
 
 module.exports = router;
