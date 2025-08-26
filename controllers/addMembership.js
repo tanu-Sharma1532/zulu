@@ -51,3 +51,13 @@ const addMembership = async (req, res) => {
 };
 
 module.exports = { addMembership };
+
+
+/*
+
+{
+  "user_id": 5434,
+  "user_name": "Bhavya Kohli ji"
+}
+
+*/
