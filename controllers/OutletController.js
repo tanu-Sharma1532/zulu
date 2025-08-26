@@ -1,5 +1,6 @@
 // NearbyOutletsController.js
 const db = require("../config/db");
+const { setCache, getCache } = require("../config/redisService"); // Redis helpers
 
 // Fetch nearby outlets based on user's latitude/longitude
 async function getNearbyOutlets({
@@ -8,33 +9,55 @@ async function getNearbyOutlets({
   latitude,
   longitude,
   maxDistance = 15000, // in km
-}) {
-  const lat = latitude || 25.410596822152865;
-  const long = longitude || 55.44219220569371;
-  const offset = (page - 1) * (limit || 1);
+}, req) {
+  try {
+    const lat = latitude || 25.410596822152865;
+    const long = longitude || 55.44219220569371;
+    const offset = (page - 1) * (limit || 1);
 
-  let sql = `
-    SELECT seller_data.*, users.*, 
-      (6371 * ACOS(
-        COS(RADIANS(?)) * COS(RADIANS(users.latitude)) * COS(RADIANS(users.longitude) - RADIANS(?)) +
-        SIN(RADIANS(?)) * SIN(RADIANS(users.latitude))
-      )) AS distance
-    FROM seller_data
-    JOIN users ON users.id = seller_data.user_id
-    HAVING distance < ?
-    ORDER BY distance ASC
-  `;
+    const ignoreCache = req?.headers?.ignorecache === "true";
 
-  const params = [lat, long, lat, maxDistance];
+    // Create a unique cache key based on query params
+    const cacheKey = `nearbyOutlets:${lat}:${long}:${page}:${limit}:${maxDistance}`;
 
-  if (limit !== null && limit !== undefined && !isNaN(limit)) {
-    sql += " LIMIT ? OFFSET ?";
-    params.push(Number(limit), Number(offset));
+    if (!ignoreCache) {
+      const cached = await getCache(cacheKey);
+      if (cached) return cached;
+    }
+
+    let sql = `
+      SELECT seller_data.*, users.*, 
+        (6371 * ACOS(
+          COS(RADIANS(?)) * COS(RADIANS(users.latitude)) * COS(RADIANS(users.longitude) - RADIANS(?)) +
+          SIN(RADIANS(?)) * SIN(RADIANS(users.latitude))
+        )) AS distance
+      FROM seller_data
+      JOIN users ON users.id = seller_data.user_id
+      HAVING distance < ?
+      ORDER BY distance ASC
+    `;
+
+    const params = [lat, long, lat, maxDistance];
+
+    if (limit !== null && limit !== undefined && !isNaN(limit)) {
+      sql += " LIMIT ? OFFSET ?";
+      params.push(Number(limit), Number(offset));
+    }
+
+    const [rows] = await db.query(sql, params);
+
+    const result = stringifyNumbers(rows);
+
+    // Save to Redis cache for 1 hour
+    if (!ignoreCache) {
+      await setCache(cacheKey, result, 3600);
+    }
+
+    return result;
+  } catch (err) {
+    console.error("Error fetching nearby outlets:", err);
+    return [];
   }
-
-  const [rows] = await db.query(sql, params);
-
-  return stringifyNumbers(rows);
 }
 
 // Recursively convert all numbers to strings

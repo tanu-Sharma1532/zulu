@@ -1,4 +1,5 @@
 const sequelize = require("../config/dataBase");
+const { getCache, setCache } = require("../config/redisService");
 
 const getNewVideos = async (req, res) => {
   try {
@@ -9,6 +10,17 @@ const getNewVideos = async (req, res) => {
 
     if (isNaN(page) || isNaN(limit)) {
       return res.status(400).json({ error: "page and limit must be numeric" });
+    }
+
+    // --- Cache Key (based on filters + page + limit) ---
+    const cacheKey = `new_videos:${JSON.stringify(filters)}:page:${page}:limit:${limit}`;
+    const ignoreCache = req?.headers?.ignorecache === "true";
+
+    if (!ignoreCache) {
+      const cached = await getCache(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
     }
 
     // Base query
@@ -40,16 +52,23 @@ const getNewVideos = async (req, res) => {
     // Count total videos
     let countQuery = `SELECT COUNT(*) as total FROM new_video WHERE 1=1`;
     if (Object.keys(filters).length) {
-      countQuery += ' AND ' + Object.keys(filters)
-        .map(k => (filters[k] !== undefined && filters[k] !== null) ? `${k} = ?` : '')
-        .filter(Boolean)
-        .join(' AND ');
+      countQuery +=
+        " AND " +
+        Object.keys(filters)
+          .map((k) =>
+            filters[k] !== undefined && filters[k] !== null ? `${k} = ?` : ""
+          )
+          .filter(Boolean)
+          .join(" AND ");
     }
 
-    const countResult = await sequelize.query(countQuery, { replacements, type: sequelize.QueryTypes.SELECT });
+    const countResult = await sequelize.query(countQuery, {
+      replacements,
+      type: sequelize.QueryTypes.SELECT,
+    });
     const total = countResult[0]?.total || 0;
 
-    return res.json({
+    const response = {
       error: false,
       message: "Success",
       data: videos,
@@ -59,11 +78,19 @@ const getNewVideos = async (req, res) => {
         currentPage: page,
         limit,
       },
-    });
+    };
 
+    // --- Save to Redis ---
+    if (!ignoreCache) {
+      await setCache(cacheKey, response, 300); // cache for 5 minutes
+    }
+
+    return res.json(response);
   } catch (err) {
     console.error("DB Error:", err);
-    return res.status(500).json({ error: true, message: "Failed to fetch videos", details: err.message });
+    return res
+      .status(500)
+      .json({ error: true, message: "Failed to fetch videos", details: err.message });
   }
 };
 

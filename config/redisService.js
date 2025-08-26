@@ -5,7 +5,7 @@ let client;
 async function initRedis() {
   if (!client) {
     client = redis.createClient({
-      url: `redis://:${process.env.REDIS_PASSWORD}@127.0.0.1:6379`,
+      url: `redis://:zuluPass@82.112.227.11:6379`,
     });
 
     client.on("error", (err) => console.error("Redis Client Error:", err));
