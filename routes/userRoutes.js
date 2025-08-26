@@ -10,6 +10,7 @@ const { signUpWithMobile, verifyOtpNew, sendOtp: sendOtpNew, testTwilioConfig } 
 const { getUiElement  } = require("../controllers/uiElementController");
 const { getAllMalls  } = require("../controllers/MallController");
 const { getOrders } = require("../controllers/getOrders");
+const { addMembership } = require("../controllers/addMembership");
 const { placeOrder, upload } = require("../controllers/PlaceOrders");
 
 
@@ -141,6 +142,11 @@ router.get("/getNearbyOutlets", async (req, res) => {
 
 
 router.post("/getOrders", getOrders);
+
+
+// Membership route
+router.post("/add-membership", addMembership);
+
 
 
 // UI Element
