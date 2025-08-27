@@ -3,3 +3,4 @@ node_modules/
 .DS_Store
 ecosystem.config.jsdata/*.json
 data/*.json
+ecosystem.config.js

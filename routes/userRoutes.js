@@ -193,6 +193,26 @@ router.get(
 
 router.post("/newPlaceOrder", newPlaceOrder);
 
+router.post("/place_order", upload.array("documents"), placeOrder);
+
+router.post("/book-tour", bookTour);
+router.post("/update-tour", updateTour);
+router.get("/outlet-slots", listOutletSlots);
+router.get("/soc-user-bookings", socUserBookings);
+router.get("/soc-user-bookings/:user_id", socUserBookings);
+router.get("/soc-seller-bookings", socSellerBookings);
+router.get("/soc-seller-bookings/:seller_id", socSellerBookings);
+router.get("/soc-all-bookings", socAllBookings);
+router.get("/soc-outlet-bookings", socOutletBookings);
+router.get("/soc-outlet-bookings/:society_id", socOutletBookings);
+router.get("/soc-outlet-bookings-datetime", socOutletBookingsByDate);
+router.get(
+  "/soc-outlet-bookings-datetime/:outlet_id/:date",
+  socOutletBookingsByDate
+);
+
+router.post("/newPlaceOrder", newPlaceOrder);
+
 router.get("/getmembershipbronze", getMembership);
 
 router.post("/notifications/send", N.sendPushNotification);
@@ -211,5 +231,4 @@ router.get("/notifications/admin-users", N.listAdminUsers);
 router.post("/tickets/create", T.createTicket);
 router.get("/tickets", T.listTickets);
 router.get("/ticket-types", T.listTicketTypes);
-
 module.exports = router;
