@@ -33,7 +33,11 @@ const {
   socOutletBookingsByDate,
 } = require("../controllers/tourController");
 const { newPlaceOrder } = require("../controllers/orderController");
-const { getMembership } = require('../controllers/getmembershipbronze');
+const { getMembership } = require("../controllers/getmembershipbronze");
+
+const N = require("../controllers/NotificationController");
+const T = require("../controllers/TicketController");
+const P = require("../controllers/productsController");
 
 const router = express.Router();
 
@@ -90,7 +94,7 @@ router.get("/getPopularCategories", async (req, res) => {
   }
 });
 
-router.get("/getProducts", getProducts);
+router.get("/getProducts", P.getProducts);
 router.get("/getNewVideos", getNewVideos);
 
 // Categories
@@ -189,8 +193,23 @@ router.get(
 
 router.post("/newPlaceOrder", newPlaceOrder);
 
+router.get("/getmembershipbronze", getMembership);
 
-router.get('/getmembershipbronze', getMembership);
+router.post("/notifications/send", N.sendPushNotification);
+router.post("/notifications/send-to-admins", N.sendPushNotificationToAdmins);
+router.post("/notifications/test", N.sendTestNotification);
+router.post("/notifications/get-user-token", N.getUserFCMToken);
+router.post("/notifications/update-token", N.updateFirebaseToken);
+router.post("/notifications/status", N.updateNotificationStatus);
+router.get("/notifications/user", N.getUserNotifications);
+router.post("/notifications/admin/status", N.updateAdminNotificationStatus);
+router.get("/notifications/admin", N.getAdminNotifications);
+router.post("/notifications/admin-users", N.addAdminUser);
+router.delete("/notifications/admin-users/:user_id", N.removeAdminUser);
+router.get("/notifications/admin-users", N.listAdminUsers);
 
+router.post("/tickets/create", T.createTicket);
+router.get("/tickets", T.listTickets);
+router.get("/ticket-types", T.listTicketTypes);
 
 module.exports = router;
