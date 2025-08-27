@@ -33,6 +33,7 @@ const {
   socOutletBookingsByDate,
 } = require("../controllers/tourController");
 const { newPlaceOrder } = require("../controllers/orderController");
+const { getMembership } = require('../controllers/getmembershipbronze');
 
 const router = express.Router();
 
@@ -187,5 +188,9 @@ router.get(
 );
 
 router.post("/newPlaceOrder", newPlaceOrder);
+
+
+router.get('/getmembershipbronze', getMembership);
+
 
 module.exports = router;
