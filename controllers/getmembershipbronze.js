@@ -72,3 +72,12 @@ const getMembership = async (req, res) => {
 };
 
 module.exports = { getMembership };
+
+
+/*
+
+{
+  "user_id": 5434
+}
+
+*/
